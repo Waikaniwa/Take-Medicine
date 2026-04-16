@@ -1,35 +1,97 @@
 /* 
- * Project myProject
- * Author: Your Name
+ * Project Take your Medicine
+ * Author: Monica Waikaniwa
  * Date: 
- * For comprehensive documentation and examples, please visit:
- * https://docs.particle.io/firmware/best-practices/firmware-template/
+ * 
+ * 
  */
 
 // Include Particle Device OS APIs
 #include "Particle.h"
+#include <Adafruit_MPR121.h>
 
-// Let Device OS manage the connection to the Particle Cloud
+
+
 SYSTEM_MODE(AUTOMATIC);
 
-// Run the application and system concurrently in separate threads
-SYSTEM_THREAD(ENABLED);
+// You can have up to 4 on one i2c bus but one is enough for testing!
+Adafruit_MPR121 cap = Adafruit_MPR121();
 
-// Show system, cloud connectivity, and application logs over USB
-// View logs with CLI using 'particle serial monitor --follow'
-SerialLogHandler logHandler(LOG_LEVEL_INFO);
+// Keeps track of the last pins touched
+// so we know when buttons are 'released'
+uint16_t lasttouched = 0;
+uint16_t currtouched = 0;
+const int PIXELCOUNT = 8;
+int pixelNum;
+int r;
+int g;
+String days [8]= (["Sunday"],["Monday"],["Tuesday"],["Wednesday"],["Thursday"],["Friday"],["Saturday"];
+Adafruit_NeoPixel;
+pixel(PIXELCOUNT,SPI1,WS2812B);
 
-// setup() runs once, when the device is first turned on
+
+void readTouchState();
+
+
+
+
 void setup() {
-  // Put initialization like pinMode and begin functions here
-}
+  Serial.begin(9600);
+  waitFor(Serial.isConnected,10000);
+  Serial.printf("Adafruit MPR121 Capacitive Touch sensor test"); 
+  // Default address is 0x5A, if tied to 3.3V its 0x5B
+  // If tied to SDA its 0x5C and if SCL then 0x5D
+  if (!cap.begin(0x5A)) {
+    Serial.printf("MPR121 not found, check wiring?\n");
+    //while (1)
+  }
+  Serial.printf("MPR121 found!");
 
-// loop() runs over and over again, as quickly as it can execute.
+  pixel.begin();
+  pixel.setBrightness(100);
+  pixel.show();
+
+  r = random(255);
+  g = random(255);
+  
+  for(pixelNum=0;pixelNum<=8;pixelNum++){
+    pixel.setPixelColor(pixelNum, r, g);
+    pixel.show();
+    delay(100);
+    pixel.clear();
+  }
+}
+  for(pixelNum=8, pixelNum>=0, pixelNum--){
+    pixel.setPixelColor(pixelNum, r, g);
+    pixel.show();
+    delay(100);
+    pixel.clear();
+
+
 void loop() {
-  // The core of your code will likely live here.
+  // Get the currently touched pads
+  currtouched = cap.touched();
 
-  // Example: Publish event to cloud every 10 seconds. Uncomment the next 3 lines to try it!
-  // Log.info("Sending Hello World to the cloud!");
-  // Particle.publish("Hello world!");
-  // delay( 10 * 1000 ); // milliseconds and blocking - see docs for more info!
 }
+
+void readTouchState(){ 
+   for (uint8_t i=0; i<12; i++) {
+    // it if *is* touched and *wasnt* touched before, alert!
+    if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) ) {
+      Serial.printf("%i touched\n",i); 
+    }
+     // if it *was* touched and now *isnt*, alert!
+    if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) ) {
+      Serial.printf("%i",i); 
+      Serial.printf("released");
+    }
+  }
+  // reset our state
+  lasttouched = currtouched;
+
+  // comment out this line for detailed data from the sensor!
+  return;
+
+}
+
+
